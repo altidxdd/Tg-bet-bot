@@ -12,28 +12,46 @@ def get_user(username):
         users[username] = {"total_bet": 0}
     return users[username]
 
+# -------- PARSE GAME MESSAGE --------
 async def parse_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
 
-    if text.startswith("Game started"):
+    if not text:
+        return
+
+    # Detect "Game started" even with emoji like ✅ Game started
+    if "game started" in text.lower():
         try:
-            p1 = re.search(r"Player 1:\s*@?(\w+)", text).group(1)
-            bet = int(re.search(r"Bet:\s*(\d+)", text).group(1))
+            # Extract Player 1 username
+            p1_match = re.search(r"Player 1:\s*@?([A-Za-z0-9_]+)", text)
+
+            # Extract Bet amount (supports ₹500, $500, or 500)
+            bet_match = re.search(r"Bet:\s*[₹$]?\s*(\d+)", text)
+
+            if not p1_match or not bet_match:
+                print("Format didn't match")
+                return
+
+            p1 = p1_match.group(1)
+            bet = int(bet_match.group(1))
 
             user1 = get_user(p1)
             user1["total_bet"] += bet
 
-            await update.message.reply_text(f"₹{bet} bet recorded for @{p1} ✅")
+            await update.message.reply_text(
+                f"₹{bet} bet recorded for @{p1} ✅"
+            )
 
-        except:
-            pass
+        except Exception as e:
+            print("Error:", e)
 
+# -------- INDIVIDUAL BET --------
 async def indibet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text("Usage: /indibet username")
         return
 
-    username = context.args[0].replace("@","")
+    username = context.args[0].replace("@", "")
 
     if username in users:
         total = users[username]["total_bet"]
@@ -41,10 +59,12 @@ async def indibet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("No data found.")
 
+# -------- TOTAL GROUP BET --------
 async def totalbet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total = sum(user["total_bet"] for user in users.values())
     await update.message.reply_text(f"💰 Total Group Bets: ₹{total}")
 
+# -------- BOT START --------
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, parse_game))
