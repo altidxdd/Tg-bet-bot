@@ -13,9 +13,9 @@ conn = sqlite3.connect("bets.db", check_same_thread=False)
 cursor = conn.cursor()
 
 cursor.execute("""
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE IF NOT EXISTS users2 (
     username TEXT PRIMARY KEY,
-    total_bet INTEGER DEFAULT 0
+    total_bet REAL DEFAULT 0
 )
 """)
 conn.commit()
@@ -54,30 +54,7 @@ async def is_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admins = await context.bot.get_chat_administrators(update.effective_chat.id)
     return any(admin.user.id == update.effective_user.id for admin in admins)
 
-async def parse_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.text:
-        return
 
-    if update.effective_user.id != ALLOWED_USER_ID:
-        return
-
-    text = update.message.text
-
-    if "game started" in text.lower():
-        p1_match = re.search(r"Player 1:\s*@?([A-Za-z0-9_]+)", text)
-        bet_match = re.search(r"Bet:\s*\$?\s*(\d+)", text)
-
-        if not p1_match or not bet_match:
-            return
-
-        username = p1_match.group(1)
-        bet = int(bet_match.group(1))
-
-        add_bet(username, bet)
-
-        await update.message.reply_text(
-            f"{CURRENCY}{bet} bet recorded for @{username} ✅"
-        )
 
 async def indibet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin(update, context):
@@ -88,7 +65,33 @@ async def indibet(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Usage: /indibet username")
         return
 
-    username = context.args[0].replace("@", "")
+    username = context.args[0].replace("@async def parse_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return
+
+    # Only allow the specific BOT ID
+    if update.effective_user.id != 1196029909:
+        return
+
+    text = update.message.text
+
+    # Allow anything before Game started
+    if "game started" in text.lower():
+
+        p1_match = re.search(r"Player 1:\s*([A-Za-z0-9_ ]+)", text)
+        bet_match = re.search(r"Bet:\s*\$?\s*(\d+(\.\d+)?)", text)
+
+        if not p1_match or not bet_match:
+            return
+
+        username = p1_match.group(1).strip()
+        bet = float(bet_match.group(1))
+
+        add_bet(username, bet)
+
+        await update.message.reply_text(
+            f"${bet:.2f} bet recorded for {username} ✅"
+        )", "")
     total = get_user_bet(username)
 
     if total > 0:
