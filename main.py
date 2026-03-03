@@ -6,8 +6,9 @@ import sqlite3
 
 TOKEN = os.getenv("TOKEN")
 
+# ===== SETTINGS =====
 CURRENCY = "$"
-ALLOWED_SENDER = "raika"
+ALLOWED_USER_ID = 1196029909   # Only this user can send game messages
 
 # ===== DATABASE SETUP =====
 conn = sqlite3.connect("bets.db", check_same_thread=False)
@@ -51,8 +52,7 @@ def get_all_users():
 def reset_all():
     cursor.execute("DELETE FROM users")
     conn.commit()
-
-# ===== ADMIN CHECK =====
+    # ===== ADMIN CHECK =====
 async def is_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admins = await context.bot.get_chat_administrators(update.effective_chat.id)
     return any(admin.user.id == update.effective_user.id for admin in admins)
@@ -62,13 +62,15 @@ async def parse_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
 
-    sender = update.effective_user.username
-    if not sender or sender.lower() != ALLOWED_SENDER.lower():
+    # ✅ Only allow specific USER ID
+    if update.effective_user.id != ALLOWED_USER_ID:
         return
 
     text = update.message.text
 
+    # ✅ Allow ANYTHING before "Game started"
     if "game started" in text.lower():
+
         p1_match = re.search(r"Player 1:\s*@?([A-Za-z0-9_]+)", text)
         bet_match = re.search(r"Bet:\s*\$?\s*(\d+)", text)
 
@@ -164,8 +166,87 @@ Commands:
 /resetall
 /help
 """)
+    # ===== COMMANDS =====
+async def indibet(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_admin(update, context):
+        await update.message.reply_text("❌ Only admins can use this command.")
+        return
 
-# ===== START =====
+    if not context.args:
+        await update.message.reply_text("Usage: /indibet username")
+        return
+
+    username = context.args[0].replace("@", "")
+    total = get_user_bet(username)
+
+    if total > 0:
+        await update.message.reply_text(f"@{username} Total Bet: {CURRENCY}{total}")
+    else:
+        await update.message.reply_text("No data found.")
+
+async def mybet(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_admin(update, context):
+        await update.message.reply_text("❌ Only admins can use this command.")
+        return
+
+    username = update.effective_user.username
+    total = get_user_bet(username)
+
+    if total > 0:
+        await
+        update.message.reply_text(f"@{username} Your Total Bet: {CURRENCY}{total}")
+    else:
+        await update.message.reply_text("No data found.")
+
+async def totalbet(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_admin(update, context):
+        await update.message.reply_text("❌ Only admins can use this command.")
+        return
+
+    users = get_all_users()
+    total = sum(user[1] for user in users)
+
+    await update.message.reply_text(f"💰 Total Group Bets: {CURRENCY}{total}")
+
+async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_admin(update, context):
+        await update.message.reply_text("❌ Only admins can use this command.")
+        return
+
+    users = get_all_users()
+
+    if not users:
+        await update.message.reply_text("No data yet.")
+        return
+
+    message = "🏆 Leaderboard:\n\n"
+    for i, (username, total) in enumerate(users[:10], start=1):
+        message += f"{i}. @{username} - {CURRENCY}{total}\n"
+        await update.message.reply_text(message)
+
+async def resetall(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_admin(update, context):
+        await update.message.reply_text("❌ Only admins can use this command.")
+        return
+
+    reset_all()
+    await update.message.reply_text("✅ All data reset.")
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_admin(update, context):
+        await update.message.reply_text("❌ Only admins can use this command.")
+        return
+
+    await update.message.reply_text("""
+Commands:
+/indibet username
+/mybet
+/totalbet
+/leaderboard
+/resetall
+/help
+""")
+    # ===== START =====
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, parse_game))
