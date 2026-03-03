@@ -5,6 +5,9 @@ import os
 
 TOKEN = os.getenv("TOKEN")
 
+# ---- CHANGE CURRENCY HERE IF NEEDED ----
+CURRENCY = "$"
+
 users = {}
 
 def get_user(username):
@@ -25,8 +28,8 @@ async def parse_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Extract Player 1 username
             p1_match = re.search(r"Player 1:\s*@?([A-Za-z0-9_]+)", text)
 
-            # Extract Bet amount (supports ₹500, $500, or 500)
-            bet_match = re.search(r"Bet:\s*[₹$]?\s*(\d+)", text)
+            # Extract Bet amount (supports $500 or 500)
+            bet_match = re.search(r"Bet:\s*\$?\s*(\d+)", text)
 
             if not p1_match or not bet_match:
                 print("Format didn't match")
@@ -39,7 +42,7 @@ async def parse_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user1["total_bet"] += bet
 
             await update.message.reply_text(
-                f"₹{bet} bet recorded for @{p1} ✅"
+                f"{CURRENCY}{bet} bet recorded for @{p1} ✅"
             )
 
         except Exception as e:
@@ -55,14 +58,14 @@ async def indibet(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if username in users:
         total = users[username]["total_bet"]
-        await update.message.reply_text(f"@{username} Total Bet: ₹{total}")
+        await update.message.reply_text(f"@{username} Total Bet: {CURRENCY}{total}")
     else:
         await update.message.reply_text("No data found.")
 
 # -------- TOTAL GROUP BET --------
 async def totalbet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total = sum(user["total_bet"] for user in users.values())
-    await update.message.reply_text(f"💰 Total Group Bets: ₹{total}")
+    await update.message.reply_text(f"💰 Total Group Bets: {CURRENCY}{total}")
 
 # -------- BOT START --------
 app = ApplicationBuilder().token(TOKEN).build()
