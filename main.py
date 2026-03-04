@@ -41,28 +41,43 @@ def reset_all_data():
 
 # ===== PARSE GAME MESSAGE =====
 async def parse_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.text:
+
+    if not update.message:
         return
 
-    # Only count messages from specific BOT ID
-    if update.effective_user.id != ALLOWED_USER_ID:
+    text = update.message.text or ""
+
+    # Only accept messages from the game bot
+    if update.effective_user.id != 1196029909:
         return
 
-    text = update.message.text
+    # Must contain Game started
+    if "game started" not in text.lower():
+        return
 
-    if "game started" in text.lower():
-        p1 = re.search(r"Player 1:\s*([A-Za-z0-9_ ]+)", text)
-        bet = re.search(r"Bet:\s*\$?\s*(\d+(\.\d+)?)", text)
+    # Find bet amount
+    bet_match = re.search(r"Bet:\s*\$?([0-9]+(\.[0-9]+)?)", text)
 
-        if not p1 or not bet:
-            return
+    if not bet_match:
+        return
 
-        username = p1.group(1).strip()
-        amount = float(bet.group(1))
+    amount = float(bet_match.group(1))
 
-        add_bet(username, amount)
+    # Try to find Player 1 name (optional)
+    p1_match = re.search(r"Player 1:\s*(.*)", text)
 
-        await update.message.reply_text(f"{CURRENCY}{amount:.2f} bet recorded for {username} ✅")
+    if p1_match:
+        username = p1_match.group(1).strip()
+        if username == "":
+            username = "Unknown"
+    else:
+        username = "Unknown"
+
+    add_bet(username, amount)
+
+    await update.message.reply_text(
+        f"💰 Bet recorded: ${amount:.2f}"
+    )
 
 # ===== COMMANDS =====
 async def totalbet(update: Update, context: ContextTypes.DEFAULT_TYPE):
